@@ -1,0 +1,14 @@
+﻿@model PlanMyTrip.Web.Models.Venue
+
+@if (Model.PrimaryCategory != null)
+{
+    <div class="venue ui-widget">
+        <div class="ui-widget-content">
+            <div><a href="@Model.Url">@Model.Name</a></div> 
+            <div>
+                @Html.Partial("_Category", Model.PrimaryCategory)
+                <img src="@Model.MarkerIcon" alt="@Model.MarkerIcon"/>
+            </div>
+        </div>
+    </div>        
+}

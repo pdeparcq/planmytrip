@@ -1,0 +1,272 @@
+﻿@{
+    ViewBag.Title = "PlanMyTrip";
+}
+
+@section scripts{
+    @if (false)
+    {
+        <script src="../../Scripts/jquery-1.7.1-vsdoc.js" type="text/javascript"></script>
+    }   
+    <script type="text/javascript"
+        src="http://maps.googleapis.com/maps/api/js?key=AIzaSyDTQqerCBmOtP8Qtb5QsxoNrBCaNxVEK3M&sensor=false">
+    </script>
+    <script type="text/javascript"
+        src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places"></script>
+    <script src="../../Scripts/google-maps-3-vs-1-0.js" type="text/javascript"></script>
+    <script type="text/javascript">
+
+        var markersArray = [];
+        var map = new google.maps.Map(document.getElementById("map_canvas"));
+        var bounds = new google.maps.LatLngBounds();
+
+        function initializeAutoComplete()
+        {
+            var input = $("#search").get(0);
+            var autocomplete = new google.maps.places.Autocomplete(input);
+
+            google.maps.event.addListener(autocomplete, 'place_changed', 
+                function() 
+                {
+                    var place = autocomplete.getPlace();
+                    if(place.geometry != null)
+                        changeSearchLocation(place.geometry.location);
+                }
+            );
+        }
+
+        function changeSearchLocation(location)
+        {
+            $.ajax(
+                {
+                    url: "@Url.Action("SetSearchLocation", "Home")",
+                    type: "POST",
+                    datatype: "json",
+                    data: {latitude: location.lat(), longitude: location.lng()},
+                    success: function(data)
+                    {
+                        loadSuggestedVenues();
+                    },
+                    error: function(error)
+                    {
+                        alert(error);
+                    }
+                } 
+            );
+        }
+
+        function changeSearchRadius(radius)
+        {
+            $.ajax(
+                {
+                    url: "@Url.Action("SetSearchRadius", "Home")",
+                    type: "POST",
+                    datatype: "json",
+                    data: {radius: radius},
+                    success: function(data)
+                    {
+                        loadSuggestedVenues();
+                    },
+                    error: function(error)
+                    {
+                        alert(error);
+                    }
+                } 
+            );
+        }
+
+        function toggleMainCategory(categoryId)
+        {
+            $.ajax(
+                {
+                    url: "@Url.Action("ToggleMainCategory", "Home")",
+                    type: "POST",
+                    datatype: "json",
+                    data: {categoryId: categoryId},
+                    success: function(data)
+                    {
+                        loadSuggestedVenues();
+                    },
+                    error: function(error)
+                    {
+                        alert(error);
+                    }
+                } 
+            );
+        }
+
+        function loadMainCategories()
+        {
+            $.ajax(
+                {
+                    headers: {"Content-Type": "text/html", "Accept": "text/html"},
+                    url: "@Url.Action("MainCategories", "Home")",
+                    datatype: "html",
+                    success: function(data)
+                    {
+                        $("#mainCategories").html(data);
+                        $(".main_category").each(
+                                function(index, element)
+                                {
+                                    $(element).click(
+                                        $(element).attr("categoryid"),
+                                        function(e)
+                                        {
+                                            $(e.target).toggleClass("disabled");
+                                            toggleMainCategory(e.data);
+                                        }
+                                    );
+                                }
+                            );
+                    },
+                    error: function(error)
+                    {
+                        alert(error);
+                    }
+                } 
+            );
+        }
+
+        function loadSuggestedVenues()
+        {
+            $.ajax(
+                {
+                    headers: {"Content-Type": "text/html", "Accept": "text/html"},
+                    url: "@Url.Action("SuggestedVenues", "Home")",
+                    datatype: "html",
+                    success: function(data)
+                    {
+                        $("#suggestedVenues").html(data);
+                        loadMapData();
+                    },
+                    error: function(error)
+                    {
+                        alert(error);
+                    }
+                } 
+            );
+        }
+
+        function clearOverlays() {
+          for (var i = 0; i < markersArray.length; i++ ) {
+            markersArray[i].setMap(null);
+          }
+          markersArray = new Array();
+        }
+
+        function addVenueToMap(index, venue)
+        {
+            var marker = new google.maps.Marker();
+            var geoLocation = new google.maps.LatLng(venue.GeoLocation.Latitude,venue.GeoLocation.Longitude);
+            marker.setTitle(venue.Name);
+            marker.setPosition(geoLocation);
+            marker.setIcon(venue.MarkerIcon);
+            marker.setMap(map);
+            markersArray.push(marker);
+            bounds.extend(geoLocation);
+        }
+
+        function loadMapData()
+        {
+            $.ajax(
+                {
+                    headers: {"Content-Type": "application/json", "Accept": "application/json"},
+                    url: "@Url.Action("SuggestedVenues", "Home")",
+                    datatype: "json",
+                    success: function(data)
+                    {
+                        clearOverlays();
+                        bounds = new google.maps.LatLngBounds()
+                        $.each(data, function(index, venue) { 
+                            addVenueToMap(index, venue);
+                        });
+                        map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+                        map.fitBounds(bounds);
+                    },
+                    error: function(error)
+                    {
+                        alert(error);
+                    }
+                } 
+            );
+        }
+
+        $(function () {
+            //debugger
+            $("#radiusSlider").slider(
+                {
+                    min: 1000,
+                    max: 10000,
+                    change: function(event, ui)
+                    {
+                        changeSearchRadius(ui.value);
+                    },
+                    step: 1000
+                }
+            );
+            initializeAutoComplete();
+            loadMainCategories();
+        });
+	</script>
+}
+
+<div class="container-fluid">
+    <div class="row-fluid">
+        <div class="header ui-widget span12">
+            <div class="ui-widget-header">
+                <h4>Search</h4>
+            </div>
+            <div class="ui-widget-content">
+                <div class="row-fluid">
+                    <div id="mainCategories" class="span4">
+                        Loading Main Categories...
+                    </div>
+                    <div class="span4">
+                        <input id="search" type="text"/>
+                    </div>
+                    <div class="span4">
+                        <div id="radiusSlider"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row-fluid">
+        <div class="ui-widget span2">
+            <div class="ui-widget-header">
+                <h4>Suggestions</h4>
+            </div>
+            <div id="suggestedVenues" class="venues ui-widget-content">
+                <p>No suggestions</p>
+            </div>
+        </div>
+        <div class="ui-widget span2">
+            <div class="ui-widget-header">
+                <h4>Planned Trip</h4>
+            </div>
+            <div id="plannedTrip" class="venues ui-widget-content">
+                <p>Nothing planned yet...</p>
+            </div>
+        </div>
+        <div class="ui-widget span8">
+            <div class="ui-widget-header">
+                <h4>Google Map</h4>
+            </div>
+            <div id="map_canvas" class="ui-widget-content">
+            </div>      
+        </div>
+    </div>
+    <div class="row-fluid">
+        <div class="footer ui-widget span12">
+            <div class="ui-widget-header">
+                <h4>Legend</h4>
+            </div>
+            <div class="ui-widget-content">
+                &nbsp;
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
