@@ -10,5 +10,6 @@ namespace PlanMyTrip.Web.Models
         public List<Category> MainCategories { get; set; }
         public VenueSearchRequest SearchRequest { get; set; }
         public List<Venue> SuggestedVenues { get; set; }
+        public List<Venue> PlannedTrip { get; set; }
     }
 }

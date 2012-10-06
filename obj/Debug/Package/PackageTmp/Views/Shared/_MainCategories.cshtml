@@ -1,6 +1,0 @@
-﻿@model IEnumerable<PlanMyTrip.Web.Models.Category>
-
-@foreach (var category in Model)
-{
-    <div class="main_category" categoryid="@category.Id">@Html.Partial("_Category", (PlanMyTrip.Web.Models.Category)category)</div>      
-}

@@ -16,8 +16,10 @@
     <script type="text/javascript">
 
         var markersArray = [];
-        var map = new google.maps.Map(document.getElementById("map_canvas"));
-        var bounds = new google.maps.LatLngBounds();
+        var directionsDisplay;
+        var directionsService = new google.maps.DirectionsService();
+        var map;
+        var bounds;
 
         function initializeAutoComplete()
         {
@@ -126,6 +128,48 @@
             );
         }
 
+        function addVenueToPlannedTrip(venueId)
+        {
+            $.ajax(
+                {
+                    url: "@Url.Action("AddSuggestedVenueToPlan", "Home")",
+                    type: "POST",
+                    datatype: "json",
+                    data: {venueId: venueId},
+                    success: function(data)
+                    {
+                        loadSuggestedVenues();
+                        loadPlannedTrip();
+                    },
+                    error: function(error)
+                    {
+                        alert(error);
+                    }
+                } 
+            );
+        }
+
+        function removeVenueFromPlannedTrip(venueId)
+        {
+            $.ajax(
+                {
+                    url: "@Url.Action("RemoveVenueFromPlan", "Home")",
+                    type: "POST",
+                    datatype: "json",
+                    data: {venueId: venueId},
+                    success: function(data)
+                    {
+                        loadSuggestedVenues();
+                        loadPlannedTrip();
+                    },
+                    error: function(error)
+                    {
+                        alert(error);
+                    }
+                } 
+            );
+        }
+
         function loadSuggestedVenues()
         {
             $.ajax(
@@ -136,7 +180,38 @@
                     success: function(data)
                     {
                         $("#suggestedVenues").html(data);
+                        $(".addToPlan").click(
+                            function(e)
+                            {
+                                addVenueToPlannedTrip($(e.target).attr("venueid"));
+                            }
+                        );
                         loadMapData();
+                    },
+                    error: function(error)
+                    {
+                        alert(error);
+                    }
+                } 
+            );
+        }
+
+        function loadPlannedTrip()
+        {
+            $.ajax(
+                {
+                    headers: {"Content-Type": "text/html", "Accept": "text/html"},
+                    url: "@Url.Action("PlannedTrip", "Home")",
+                    datatype: "html",
+                    success: function(data)
+                    {
+                        $("#plannedTrip").html(data);
+                        $(".removeFromPlan").click(
+                            function(e)
+                            {
+                                removeVenueFromPlannedTrip($(e.target).attr("venueid"));
+                            }
+                        );
                     },
                     error: function(error)
                     {
@@ -153,7 +228,8 @@
           markersArray = new Array();
         }
 
-        function addVenueToMap(index, venue)
+
+        function addMarker(venue)
         {
             var marker = new google.maps.Marker();
             var geoLocation = new google.maps.LatLng(venue.GeoLocation.Latitude,venue.GeoLocation.Longitude);
@@ -162,10 +238,20 @@
             marker.setIcon(venue.MarkerIcon);
             marker.setMap(map);
             markersArray.push(marker);
-            bounds.extend(geoLocation);
         }
 
-        function loadMapData()
+        function addSuggestedVenueToMap(venue)
+        {
+            addMarker(venue);
+            bounds.extend(new google.maps.LatLng(venue.GeoLocation.Latitude,venue.GeoLocation.Longitude));
+        }
+
+        function addPlannedVenueToMap(venue)
+        {
+            addMarker(venue);
+        }
+
+        function loadMapSuggestedVenues()
         {
             $.ajax(
                 {
@@ -174,13 +260,12 @@
                     datatype: "json",
                     success: function(data)
                     {
-                        clearOverlays();
+                        
                         bounds = new google.maps.LatLngBounds()
                         $.each(data, function(index, venue) { 
-                            addVenueToMap(index, venue);
+                            addSuggestedVenueToMap(venue);
                         });
-                        map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
-                        map.fitBounds(bounds);
+                        map.fitBounds(bounds);     
                     },
                     error: function(error)
                     {
@@ -190,19 +275,78 @@
             );
         }
 
-        $(function () {
-            //debugger
-            $("#radiusSlider").slider(
+        function loadMapPlannedTrip()
+        {
+            $.ajax(
                 {
-                    min: 1000,
-                    max: 10000,
-                    change: function(event, ui)
+                    headers: {"Content-Type": "application/json", "Accept": "application/json"},
+                    url: "@Url.Action("PlannedTrip", "Home")",
+                    datatype: "json",
+                    success: function(data)
                     {
-                        changeSearchRadius(ui.value);
+                        $.each(data, function(index, venue) { 
+                            addPlannedVenueToMap(venue);
+                        });
+
+                        if(data.length > 1)
+                        {
+                            directionsDisplay.setMap(map);
+
+                            var waypts = [];
+
+                            for(v=1; v < data.length-1; v++)
+                            {
+                                waypts.push({
+                                    location:new google.maps.LatLng(data[v].GeoLocation.Latitude,data[v].GeoLocation.Longitude),
+                                    stopover:true
+                                });
+                            }
+
+                            var request = {
+                                origin: new google.maps.LatLng(data[0].GeoLocation.Latitude,data[0].GeoLocation.Longitude),
+                                destination: new google.maps.LatLng(data[data.length-1].GeoLocation.Latitude,data[data.length-1].GeoLocation.Longitude),
+                                waypoints: waypts,
+                                optimizeWaypoints: false,
+                                travelMode: google.maps.TravelMode.WALKING
+                            };
+
+                            directionsService.route(request, function(response, status) {
+                                if (status == google.maps.DirectionsStatus.OK) {
+                                    directionsDisplay.setDirections(response);
+                                }
+                                else
+                                {
+                                    directionsDisplay.setMap(null);
+                                }
+                            });
+                        }
+                        else
+                        {
+                            directionsDisplay.setMap(null);
+                        }
                     },
-                    step: 1000
-                }
+                    error: function(error)
+                    {
+                        alert(error);
+                    }
+                } 
             );
+        }
+
+        function loadMapData()
+        {
+            clearOverlays();
+            map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+            loadMapSuggestedVenues();
+            loadMapPlannedTrip();
+        }
+
+        $(function () {
+            map = new google.maps.Map(document.getElementById("map_canvas"));
+            map.setCenter(new google.maps.LatLng(0,0));
+            map.setMapTypeId(google.maps.MapTypeId.SATELLITE);
+            map.setZoom(0);
+            directionsDisplay = new google.maps.DirectionsRenderer({suppressMarkers: true, preserveViewport: true});
             initializeAutoComplete();
             loadMainCategories();
         });
@@ -211,58 +355,34 @@
 
 <div class="container-fluid">
     <div class="row-fluid">
-        <div class="header ui-widget span12">
-            <div class="ui-widget-header">
-                <h4>Search</h4>
-            </div>
-            <div class="ui-widget-content">
-                <div class="row-fluid">
-                    <div id="mainCategories" class="span4">
-                        Loading Main Categories...
-                    </div>
-                    <div class="span4">
-                        <input id="search" type="text"/>
-                    </div>
-                    <div class="span4">
-                        <div id="radiusSlider"></div>
-                    </div>
+        <div class="well well-large span12">
+            <div class="row-fluid">
+                <div id="mainCategories" class="span4">
+                    Loading Main Categories...
                 </div>
-            </div>
+                <div class="span8">
+                    <input id="search" type="text"/>
+                </div>
+            </div> 
         </div>
     </div>
     <div class="row-fluid">
-        <div class="ui-widget span2">
-            <div class="ui-widget-header">
-                <h4>Suggestions</h4>
-            </div>
-            <div id="suggestedVenues" class="venues ui-widget-content">
+        <div class="span2">
+            <button class="btn btn-large btn-block btn-primary disabled" type="button">Suggestions</button>
+            <div id="suggestedVenues" class="venues">
                 <p>No suggestions</p>
             </div>
         </div>
-        <div class="ui-widget span2">
-            <div class="ui-widget-header">
-                <h4>Planned Trip</h4>
-            </div>
-            <div id="plannedTrip" class="venues ui-widget-content">
+        <div class="span2">
+            <button class="btn btn-large btn-block btn-primary disabled" type="button">Planned Trip</button>
+            <div id="plannedTrip" class="venues">
                 <p>Nothing planned yet...</p>
             </div>
         </div>
-        <div class="ui-widget span8">
-            <div class="ui-widget-header">
-                <h4>Google Map</h4>
-            </div>
-            <div id="map_canvas" class="ui-widget-content">
+        <div class="span8">
+            <button class="btn btn-large btn-block btn-primary disabled" type="button">Google Map</button>
+            <div id="map_canvas">
             </div>      
-        </div>
-    </div>
-    <div class="row-fluid">
-        <div class="footer ui-widget span12">
-            <div class="ui-widget-header">
-                <h4>Legend</h4>
-            </div>
-            <div class="ui-widget-content">
-                &nbsp;
-            </div>
         </div>
     </div>
 </div>

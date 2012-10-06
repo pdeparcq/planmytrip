@@ -1,14 +1,20 @@
 ﻿@model PlanMyTrip.Web.Models.Venue
 
 @if (Model.PrimaryCategory != null)
-{
-    <div class="venue ui-widget">
-        <div class="ui-widget-content">
-            <div><a href="@Model.Url">@Model.Name</a></div> 
-            <div>
-                @Html.Partial("_Category", Model.PrimaryCategory)
-                <img src="@Model.MarkerIcon" alt="@Model.MarkerIcon"/>
-            </div>
+{  
+    <div class="well well-small">
+        <div><a href="@Model.Url">@Model.Name</a></div> 
+        <div>
+            @Html.Partial("_Category", Model.PrimaryCategory)
+            <img src="@Model.MarkerIcon" alt="@Model.MarkerIcon"/>
+            @if ((bool)ViewData["IsSuggested"])
+            {
+                <div style="float:right"><button class="btn btn-primary btn-success addToPlan" venueid="@Model.Id" href="#"><i class="icon-plus icon-white" venueid="@Model.Id"></i></button></div>
+            }
+            else
+            {
+                <div style="float:right"><button class="btn btn-primary btn-danger removeFromPlan" venueid="@Model.Id" href="#"><i class="icon-minus icon-white" venueid="@Model.Id"></i></button></div>
+            }
         </div>
-    </div>        
+    </div>       
 }

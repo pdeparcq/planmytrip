@@ -52,6 +52,7 @@ namespace PlanMyTrip.Web.Services.Application
         private Venue CreateVenue(Contract.Data.Venue venue)
         {
             var v = new Venue();
+            v.Id = venue.id;
             var categoryId = (from c in venue.categories where c.primary select c.id).FirstOrDefault();
             if (categoryId != null)
                 v.PrimaryCategory = CategoryService.FindCategory(categoryId);

@@ -30,9 +30,10 @@ namespace PlanMyTrip.Web.Controllers
                         MainCategories = new List<Category>(CategoryService.GetMainCategories()),
                         SearchRequest = new VenueSearchRequest
                         {
-                            Radius = 1000,
+                            Radius = 10000,
                             Categories = CategoryService.GetMainCategories()
-                        }
+                        },
+                        PlannedTrip = new List<Venue>()
                     };
                 return Session[SessionContextKey] as SessionContext;
             }
@@ -43,7 +44,7 @@ namespace PlanMyTrip.Web.Controllers
             var selectedCategories = Context.SearchRequest.Categories;
             var venues = VenueService.SearchVenues(
                 Context.SearchRequest);
-            venues = venues.Where(x => selectedCategories.Contains(x.PrimaryCategory.RootCategory));
+            venues = venues.Where(x => selectedCategories.Contains(x.PrimaryCategory.RootCategory) && !Context.PlannedTrip.Contains(x));
             int i = 0;
             foreach (var venue in venues)
             {
@@ -64,6 +65,16 @@ namespace PlanMyTrip.Web.Controllers
             return Context.SuggestedVenues;
         }
 
+        public IEnumerable<Venue> GetPlannedTrip()
+        {
+            int i=1;
+            foreach (var venue in Context.PlannedTrip)
+            {
+                venue.MarkerIcon = Url.Content(string.Format("Content/images/markerIcons/largeTDBlueIcons/marker{0}.png", i++));
+            }
+            return Context.PlannedTrip;
+        }
+
         public ActionResult Index()
         {
             Session.Clear();
@@ -71,6 +82,7 @@ namespace PlanMyTrip.Web.Controllers
         }
 
         [HttpGet]
+        [OutputCache(VaryByHeader="Accept", Duration=0, NoStore=true)]
         public ActionResult SuggestedVenues()
         {
             if(Request.AcceptTypes.Contains("application/json"))
@@ -80,6 +92,17 @@ namespace PlanMyTrip.Web.Controllers
         }
 
         [HttpGet]
+        [OutputCache(VaryByHeader = "Accept", Duration = 0, NoStore = true)]
+        public ActionResult PlannedTrip()
+        {
+            if (Request.AcceptTypes.Contains("application/json"))
+                return Json(GetPlannedTrip(), JsonRequestBehavior.AllowGet);
+            else
+                return PartialView("_PlannedTrip", GetPlannedTrip());
+        }
+
+        [HttpGet]
+        [OutputCache(VaryByHeader = "Accept", Duration = 0, NoStore = true)]
         public ActionResult MainCategories()
         {
             if (Request.AcceptTypes.Contains("application/json"))
@@ -96,6 +119,30 @@ namespace PlanMyTrip.Web.Controllers
             category.IsSelected = !category.IsSelected;
             Context.SearchRequest.Categories = categories.Where(x => x.IsSelected);
             ClearSuggestedVenues();
+        }
+
+        [HttpPost]
+        public void AddSuggestedVenueToPlan(string venueId)
+        {
+            if (Context.SuggestedVenues == null)
+                return;
+            var venue = Context.SuggestedVenues.Where(x => x.Id == venueId).SingleOrDefault();
+            if (venue != null)
+            {
+                Context.PlannedTrip.Add(venue);
+                Context.SuggestedVenues.Remove(venue);
+            }
+        }
+
+        [HttpPost]
+        public void RemoveVenueFromPlan(string venueId)
+        {
+            var venue = Context.PlannedTrip.Where(x => x.Id == venueId).SingleOrDefault();
+            if (venue != null)
+            {
+                Context.PlannedTrip.Remove(venue);
+                ClearSuggestedVenues();
+            }
         }
 
         [HttpPost]

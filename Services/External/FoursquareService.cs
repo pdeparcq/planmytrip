@@ -16,6 +16,7 @@ namespace PlanMyTrip.Web.Services.External
         {
             _fourSquareClient = new RestClient("https://api.foursquare.com");
             _fourSquareClient.Authenticator = this;
+            _fourSquareClient.AddDefaultParameter("v","20121006",ParameterType.GetOrPost);
         }
 
         public IEnumerable<Category> GetCategories()
@@ -43,7 +44,6 @@ namespace PlanMyTrip.Web.Services.External
 
         public void Authenticate(IRestClient client, IRestRequest request)
         {
-            request.AddParameter("v", "20120930");
             request.AddParameter("client_id", "3EPMASFPHUHWGOVDJ33FOO3MGFKXULX55XHHRJA3DXTI2ONR");
             request.AddParameter("client_secret", "DI2TMCZZ32HGUILURIEG2ZLO2EYJNPR31IW0RURQ2NUG3YVK");
         }

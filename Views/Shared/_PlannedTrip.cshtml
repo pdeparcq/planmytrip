@@ -1,0 +1,6 @@
+﻿@model IEnumerable<PlanMyTrip.Web.Models.Venue>
+
+@foreach (var venue in Model)
+{
+    @Html.Partial("_Venue", venue, new ViewDataDictionary { { "IsSuggested", false } })
+}
